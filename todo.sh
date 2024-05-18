@@ -4,11 +4,16 @@ TASK_FILE="tasks.txt"
 complete_tasks=()
 incomplete_tasks=()
 
+
 create_task() {
     while true; do
         read -p "Enter title (required): " title
         if [[ -n "$title" ]]; then
-            break
+            if grep -q "|$title|" "$TASK_FILE"; then
+                echo "A task with this title already exists. Please choose a different title." >&2
+            else
+                break
+            fi
         else
             echo "Title is required." >&2
         fi
@@ -20,20 +25,57 @@ create_task() {
     while true; do
         read -p "Enter due date (YYYY-MM-DD) (required): " due_date
         if [[ -n "$due_date" && "$due_date" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
-            break
+            year=$(echo "$due_date" | cut -d'-' -f1)
+            month=$(echo "$due_date" | cut -d'-' -f2)
+            day=$(echo "$due_date" | cut -d'-' -f3)
+            if (( month < 1 || month > 12 )); then
+                echo "Invalid month. Must be between 01 and 12." >&2
+            else
+                case $month in
+                    01|03|05|07|08|10|12)
+                        max_day=31
+                        ;;
+                    04|06|09|11)
+                        max_day=30
+                        ;;
+                    02)
+                        if (( (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0) )); then
+                            max_day=29
+                        else
+                            max_day=28
+                        fi
+                        ;;
+                esac
+                if (( day < 1 || day > max_day )); then
+                    echo "Invalid day for the month. Must be between 01 and $max_day." >&2
+                else
+                    break
+                fi
+            fi
         else
             echo "Due date is required and must be in YYYY-MM-DD format." >&2
         fi
     done
 
-    while true; do
+   while true; do
         read -p "Enter time (HH:MM): " time
-        if [[ -z "$time" || "$time" =~ ^([01]?[0-9]|2[0-3]):[0-5][0-9]$ ]]; then
+        if [[ -z "$time" ]]; then
             break
         else
-            echo "Invalid time format. Time must be in HH:MM format." >&2
-        fi
+            # Extract hour and minute
+            hour=$(echo "$time" | cut -d':' -f1)
+            minute=$(echo "$time" | cut -d':' -f2)
+            if (( hour < 0 || hour > 23 || minute < 0 || minute > 59 )); then
+            echo "Invalid time. Hours must be between 00 and 23, and minutes must be between 00 and 59." >&2
+            elif [[ ! "$time" =~ ^([01]?[0-9]|2[0-3]):[0-5][0-9]$ ]]; then
+                echo "Time must be in HH:MM format." >&2
+            else
+                break
+            fi
+         fi
     done
+
+
 
     while true; do
         read -p "Enter completion marker (1 for complete, 0 for incomplete): " completed
@@ -48,7 +90,6 @@ create_task() {
     task="$task_id|$title|$description|$location|$due_date|$time|$completed"
     echo "$task" >> "$TASK_FILE"
     
-    # Ajoutez la tâche à la liste appropriée en fonction du marqueur de complétion
     if [[ "$completed" == "1" ]]; then
         complete_tasks+=("$task")
     else
@@ -59,6 +100,10 @@ create_task() {
 }
 
 update_task() {
+    echo "Existing tasks:"
+    grep "|" "$TASK_FILE" | while IFS='|' read -r id title description location due_date time completed; do
+        echo "ID: $id, Title: $title"
+    done
     read -p "Enter task ID to update: " task_id
     task=$(grep "^$task_id|" "$TASK_FILE")
     if [[ -z "$task" ]]; then
@@ -71,6 +116,11 @@ update_task() {
     read -p "Enter new title [$title]: " new_title
     new_title=${new_title:-$title}
 
+    if [[ "$new_title" != "$title" && $(grep -c "|$new_title|" "$TASK_FILE") -gt 0 ]]; then
+        echo "A task with this title already exists. Please choose a different title." >&2
+        exit 1
+    fi
+
     read -p "Enter new description [$description]: " new_description
     new_description=${new_description:-$description}
 
@@ -81,20 +131,56 @@ update_task() {
         read -p "Enter new due date (YYYY-MM-DD) [$due_date]: " new_due_date
         new_due_date=${new_due_date:-$due_date}
         if [[ -n "$new_due_date" && "$new_due_date" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
-            break
+            year=$(echo "$new_due_date" | cut -d'-' -f1)
+            month=$(echo "$new_due_date" | cut -d'-' -f2)
+            day=$(echo "$new_due_date" | cut -d'-' -f3)
+            if (( month < 1 || month > 12 )); then
+                echo "Invalid month. Must be between 01 and 12." >&2
+            else
+                case $month in
+                    01|03|05|07|08|10|12)
+                        max_day=31
+                        ;;
+                    04|06|09|11)
+                        max_day=30
+                        ;;
+                    02)
+                        if (( (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0) )); then
+                            max_day=29
+                        else
+                            max_day=28
+                        fi
+                        ;;
+                esac
+                if (( day < 1 || day > max_day )); then
+                    echo "Invalid day for the month. Must be between 01 and $max_day." >&2
+                else
+                    break
+                fi
+            fi
         else
             echo "Due date is required and must be in YYYY-MM-DD format." >&2
         fi
     done
-
-    while true; do
-        read -p "Enter new time (HH:MM) : " new_time
-        if [[ -z "$new_time" || "$new_time" =~ ^([01]?[0-9]|2[0-3]):[0-5][0-9]$ ]]; then
-            break
+while true; do
+    read -p "Enter new time (HH:MM): " new_time
+    new_time=${new_time:-$time}
+    if [[ -z "$new_time" ]]; then
+        break
+    else
+        # Extract hour and minute
+        hour=$(echo "$new_time" | cut -d':' -f1)
+        minute=$(echo "$new_time" | cut -d':' -f2)
+        if (( hour < 0 || hour > 23 || minute < 0 || minute > 59 )); then
+            echo "Invalid time. Hours must be between 00 and 23, and minutes must be between 00 and 59." >&2
+        elif [[ ! "$new_time" =~ ^([01]?[0-9]|2[0-3]):[0-5][0-9]$ ]]; then
+            echo "Time must be in HH:MM format." >&2
         else
-            echo "Invalid time format. Time must be in HH:MM format." >&2
+            break
         fi
-    done
+    fi
+done
+
 
     while true; do
         read -p "Enter new completion marker (1 for complete, 0 for incomplete): " new_completed
@@ -129,6 +215,11 @@ update_task() {
 }
 
 delete_task() {
+    echo "Existing tasks:"
+    grep "|" "$TASK_FILE" | while IFS='|' read -r id title description location due_date time completed; do
+        echo "ID: $id, Title: $title"
+    done
+
     read -p "Enter task ID to delete: " task_id
     task=$(grep "^$task_id|" "$TASK_FILE")
     if [[ -z "$task" ]]; then
@@ -147,8 +238,13 @@ delete_task() {
     sed -i "/^$task_id|/d" "$TASK_FILE"
     echo "Task with ID $task_id deleted."
 }
-
 show_task() {
+
+    echo "Existing tasks:"
+    grep "|" "$TASK_FILE" | while IFS='|' read -r id title description location due_date time completed; do
+        echo "ID: $id, Title: $title"
+    done
+    
     read -p "Enter task ID to show: " task_id
     task=$(grep "^$task_id|" "$TASK_FILE")
     if [[ -z "$task" ]]; then
@@ -220,7 +316,6 @@ search_tasks() {
     done
 }
 
-
 main() {
     if [[ ! -f "$TASK_FILE" ]]; then
         touch "$TASK_FILE"
@@ -252,12 +347,10 @@ main() {
             search_tasks
             ;;
         *)
-            
             exit 1
             ;;
     esac
 }
 
 main "$@"
-
 

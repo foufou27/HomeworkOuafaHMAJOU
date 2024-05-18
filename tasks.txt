@@ -1,3 +1,6 @@
-3|homework|shell scripting|uir|2024-05-17|10:00|1
 1|ouafa|hmajou|rabat|2003-05-27|14:00|0
 2|shell|devoir|uir campus|2021-01-01||0
+3|homework|shell scripting|uir|2024-05-17|10:00|1
+4|lab1|uir|oo|2003-01-10|23:20|1
+5|foufou|foufouf|foufou|2222-11-11|11:11|0
+6|uml|diagramme|uir|2024-12-12|12:12|0
