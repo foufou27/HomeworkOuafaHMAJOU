@@ -1,4 +1,4 @@
-1|ouafa|hmajou|rabat|2003-05-27|14:00|0
+1|ouafa|hmajou|marrakech|2003-05-27|14:00|0
 2|shell|devoir|uir campus|2021-01-01||0
 3|homework|shell scripting|uir|2024-05-17|10:00|1
 4|lab1|uir|oo|2003-01-10|23:20|1
